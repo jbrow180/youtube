@@ -1,0 +1,195 @@
+---
+title: "Youtube Project"
+author: "Jasmine Brown"
+date: "11/4/2019"
+output: html_document
+---
+Introduction
+
+ Go to the app store on your phone and try to find an app to watch videos. YouTube comes up. YouTube is the most popular app and website to watch any video you would like to see. YouTube is an American video-sharing website headquartered in San Bruno, California. Three people Chad Hurley, Steve Chen, and Jawed Karim, created the service in February 2005. Google bought the site in November 2006 for US$1.65 billion; YouTube now operates as one of Google's affiliates. The app allows you to explore new content, music, news, and more with the official app or the website. They also allow you to subscribe to channels with your favorite content, share with friends, or upload your videos for everyone to see.
+YouTube's most popular videos are trending. Trending helps viewers see what's happening on YouTube and in the world. Trending aims to surface videos that a wide range of viewers would find interesting. Some trends are predictable, like a new song from a famous artist or a new movie trailer. Others are surprising, like a viral video. Trending is not personalized and displays the same list of trending videos in each country to all users. The list of trending videos is updated roughly every 15 minutes. With each update, videos may move up, down, or stay in the same position in the list. YouTube maintains a list of the top trending videos. YouTube uses a combination of factors, including measuring several views, shares, comments, and likes to make the commercials and determine trending videos. This dataset is a daily record of the top trending YouTube videos and the factors that influences them. Analyzing this dataset, we can look at the main factors that include making the videos trending, such as likes, dislikes, and comments. We can view what is needed to make a video be on the trending list. To analyze this data plan is to use linear regression with the variables likes, dislikes, comments, trending data, and publish time and names. We aim to help YouTube to provide users with a threshold so they can know precisely know what is expected for views, likes, dislikes, and comments for their video to be considered as a trending video.
+
+
+Questions
+
+Can the number of views from a trending video be predicted by the likes, dislikes, comment count?
+
+What are the characteristics of a trending video?
+
+The variables used are
+
+trending_date - the date they were trending
+
+title - the titles of the videos 
+
+publish_time - the  times the videos were published
+
+views - the number of views
+
+likes - The number of likes 
+
+dislikes - The number of dislikes
+
+comment_count - The number of comments
+
+The necessary libraries needed for the project have been installed and are loaded here. 
+The dplyr packages work for selecting variables. The rmarkdown package makes the rmarkdown file nit and run. The Ggplot2 package makes all plots run and work.
+```{r}
+library(tidyr) #The swiss knife!
+library(dplyr)
+library(rmarkdown)
+library(ggplot2)
+library(caret)
+```
+
+All of the packages are loaded.  Therefore, we load the data into R and call the data frame dta.The getwd function finds the working directory for 
+```{r}
+
+Mydata <- read.csv("USvideos.csv")
+data <- read.csv("data.csv")
+```
+
+
+This function deletes the extra variable
+```{r}
+data <- select(data, -c(X.1))
+```
+
+
+Data Wrangling
+
+The data set was provided in a nearly cleaned manner.  However, multiple data wrangling techniques were performed on the data frame to transom it into a document that can be analyzed.  These techniques include removing unnecessary variables, changing the names of some columns, adding variables, and including functions for calculation. 
+
+
+This function comes with the tidyr package to select the variables that I would like to use.
+```{r cars}
+data <- Mydata[ , c("trending_date","title","publish_time","views", "likes", "dislikes","comment_count")]
+```
+
+
+
+This allows us to see the names of the variables. I decided not to change any.
+```{r}
+names(data)
+glimpse(data)
+
+```
+
+
+
+The higher the number of views, the higher the number of likes. Which is the opposite of what we would think because if views are what would make the video trending? 
+```{r}
+ggplot(data, aes(x = views, y = dislikes, color="yellow")) + geom_point()
+```
+
+The graph shows the titles aren't significant.
+```{r}
+ggplot(data, aes(x = title, y = dislikes)) +
+  geom_point() + geom_jitter()
+```
+
+
+```{r}
+ggplot(data, aes(y = views, x = likes, color=dislikes)) + geom_point() 
+
+ggplot(data, aes(y = views, x = likes, color=comment_count)) + geom_point() 
+
+ggplot(data, aes(y = views, x = comment_count, color=dislikes)) + geom_point()
+
+ggplot(data, aes(y = views, x = dislikes, color=comment_count)) + geom_point() 
+```
+
+
+The relationship between the actual variables does not appear to have a strong linear relationship. A large amount of the data is clumped around the (0,0) point.  Nevertheless, there is a positive relationship between the variables in the clean data set. It is worthwhile to note that videos that have a low number of dislikes and a moderately high number of views have high levels of comments.
+
+
+This allows the clean data se
+```{r}
+data  %>%
+  group_by(comment_count) %>%
+  summarise(n_comments = n(),
+            mean_dislikes = mean(dislikes),
+            std_error = sd(dislikes) / sqrt(n_comments))
+```
+
+Machine Learning
+The plots created, and we have a clearer understanding of the data.  The models below explore the relationship between the dependent variables and the independent variables.  After creating multiple models, we conclude that the model of best fit has a dependent variable is views, and the independent variables are likes, dislikes, and comments.  Since the dependent variable is a numerical value, multiple linear regression will be used as the machine learning technique. For the machine learning portion of the capstone project, the number of views is predicted, given the number of likes, dislikes, and comments. 
+
+Before the linear model is created, the data is divided into testing and training data.  The divide used is 80% to train the model and 20% of the data to test the model.  To determine if the model of best fit is a good model, the metrics R-squared RMSE, and p-value are observed. The model is built using the original data and not the daily means of the data.  The code below splits the data set.  Set seed gives a starting point for splitting the data.
+
+
+
+
+```{r}
+set.seed(7)
+validation_index <- createDataPartition(data$views, p=0.80, list=FALSE)
+testing <- data[-validation_index,]
+# use the remaining 80% of data to training and testing the models
+training <- data[validation_index,]
+
+```
+Since the method of choice is multiple linear regression, there are four model choices with views as the dependent variable.  The models will include a combination of independent variables in the form, (1) likes and dislikes, (2) comment_count and likes, (3) comment_count and dislikes, and (4) comment_count, dislikes, and likes.
+
+
+
+## Model1
+
+In model1, the dependent variable views, and the dependent variable is disliked.  The independent variable is statistically significant, but $R^2$ is only 0.6216.  We can produce a better model.
+```{r}
+model1 <- lm(views ~ dislikes, likes , data = training)
+summary(model1)
+```
+
+## Model2
+
+In model1, the dependent variable views, and the dependent variable is disliked.  The independent variable is statistically significant, but $R^2$ is only 0.7807.  We can produce a better model.
+```{r}
+model2 <- lm(views ~ comment_count, likes , data = training)
+summary(model2)
+```
+
+
+## Model3
+In model3, the dependent variable views, and the independent variables are dislikes and comments.  The independent variables are statistically significant, but $R^2$ is only 0.755.  We can produce a better model.
+```{r}
+model3 <- lm(views ~ dislikes + comment_count , data = training)
+summary(model3)
+```
+
+## Model4
+In model4, the dependent variable views, and the independent variables are likes, dislikes, and comment_count.  The independent variables are statistically significant, but $R^2$ is only $0.8383$.  This is the best model for all possible combinations of more than one independent variable from the choice of, likes, dislikes, and comment count.  
+
+
+
+```{r}
+model4 <- lm(views ~ dislikes + comment_count + likes, data = training)
+summary(model4)
+```
+
+
+## Model of Best Fit (Model4)
+This is the fourth model, and it is the model of best fit.
+$$ y=218.84(dislikes)-39.937(comment\_count)+15.468(likes)$$
+We are interested in whether the total number of views for a trending video can be predicted, given the number of likes and dislikes.  
+The p-value helps to determine if each independent variable is statistically significant.  A p-value is statistically significant and will be indicated by a darkened dot, *, **, or *** if the p-value is between 0 and 0.01. The independent variables, likes, dislikes, and comment_count in the summary table have p values in the following interval  $0<p-value<0.01$.  Thus these variables are highly statistically significant.
+
+We now address the quality of the linear regression fit using $R^2$ and the residual standard error (RSE).  The symbol from RSE is "$\sigma^2$."  The RSE is an estimate of standard error deviation.  That is, it is the average deviation from the true regression line.  In the resulting output, the RSE is $672500$.  This value reflects that the actual number of views deviates from the true regression line an average of approximately $672500$ views. The RSE indicates that the model has variability in fitting the data.
+
+The $R^2$ statistic provides an alternative measure of fit.  It measures the proportion of the variability in $Y$ that can be explained using $X$.  The $R^2$ statistic takes on a value, $0\leq R^2\leq 1$.The r² value is 0.8413 (the square of the correlation coefficient), indicating that 84.13% of the variation in one variable may be explained by the other. In the outcome summary for the model, $R^2=0.8413$.  Since this value is close to $1$, we can conclude that the regression did show a great correlation between variables.Only 16% can not be accounted for.
+
+Information from the $R^2$ and $\sigma^2$ statistics determine that the model was a good fit but had room to be better. Selecting additional independent variables and/or removing independent variables may have a significant impact on the model.  Finding the best practice for removing outliers may be helpful in making the model better.
+
+
+```{r}
+model5 <- lm(likes ~ dislikes + comment_count + views, data = testing)
+summary(model5)
+```
+```
+Running the same model on the testing data set shows that $R^2=0.8541$ and the RSE is significantly lower.  This shows that there is inconsistency in the training and testing models.  In both models, the independent variables have the same level of significance.
+
+Recommendations
+
+1. The model is a great predictor for determining the number of views given likes, dislikes, and comments. However, because there is some inconsistency with the model for the training and testing data set, the counter for the code to split the data set should be changed.  This could give a more regular training and testing data set. 
+2. Use classification models to make sense of the more massive amount of categorical data in the original data set instead of removing the data. Significant information can be determined from all aspects of the data in the data set.
+3. Performing the same test on different years can determine if the independent variables, likes, dislikes, and comments are still statistically significant.  We can also view the $R^2$ value to learn if the independent variables are still good predictors of the views-dependent variable.
+
